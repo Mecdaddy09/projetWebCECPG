@@ -112,80 +112,132 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import DonneCarte from "@/components/affichedonnecarte.vue";
 import Footer from "@/components/footer.vue";
+import { buildApiUrl } from "@/config/api";
 
 const slides = ref([]);
+let active = 0;
+let refreshIntervalId = null;
+let nextButton = null;
+let prevButton = null;
+
+const getSliderItems = () => document.querySelectorAll(".slider .item");
+
+const loadShow = () => {
+    const items = getSliderItems();
+    if (!items.length) {
+        return;
+    }
+
+    if (active >= items.length) {
+        active = items.length - 1;
+    }
+    if (active < 0) {
+        active = 0;
+    }
+
+    let stt = 0;
+    items[active].style.transform = "none";
+    items[active].style.zIndex = String(items.length);
+    items[active].style.filter = "none";
+    items[active].style.opacity = "1";
+
+    for (let i = active + 1; i < items.length; i++) {
+        stt++;
+        items[i].style.transform = `translateX(${120 * stt}px) scale(${
+            1 - 0.2 * stt
+        }) perspective(16px) rotateY(-1deg)`;
+        items[i].style.zIndex = String(items.length - stt);
+        items[i].style.filter = "blur(5px)";
+        items[i].style.opacity = stt > 2 ? "0" : "0.6";
+    }
+
+    stt = 0;
+    for (let i = active - 1; i >= 0; i--) {
+        stt++;
+        items[i].style.transform = `translateX(${-120 * stt}px) scale(${
+            1 - 0.2 * stt
+        }) perspective(16px) rotateY(1deg)`;
+        items[i].style.zIndex = String(items.length - stt);
+        items[i].style.filter = "blur(5px)";
+        items[i].style.opacity = stt > 2 ? "0" : "0.6";
+    }
+};
+
+const bindSliderButtons = () => {
+    nextButton = document.getElementById("next");
+    prevButton = document.getElementById("prev");
+
+    if (nextButton) {
+        nextButton.onclick = () => {
+            const items = getSliderItems();
+            if (!items.length) {
+                return;
+            }
+            active = active + 1 < items.length ? active + 1 : 0;
+            loadShow();
+        };
+    }
+
+    if (prevButton) {
+        prevButton.onclick = () => {
+            const items = getSliderItems();
+            if (!items.length) {
+                return;
+            }
+            active = active - 1 >= 0 ? active - 1 : items.length - 1;
+            loadShow();
+        };
+    }
+};
 
 const fetchFeedbacks = async () => {
     try {
-        const response = await fetch(
-            "https://www.cartogenre-uf.mastercmw.com/fetch_feedbacks.php"
-        );
+        const response = await fetch(buildApiUrl("fetch_feedbacks.php"));
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} (${response.statusText})`);
+        }
+
         const data = await response.json();
-        slides.value = data.map((item, index) => ({
+        const entries = Array.isArray(data) ? data : [];
+
+        slides.value = entries.map((item, index) => ({
             id: item.id || index + 1,
             title: item.created_at ? item.created_at.split(" ")[0] : "",
             text: item.message || "",
         }));
+
+        if (active >= slides.value.length) {
+            active = 0;
+        }
+
+        await nextTick();
+        loadShow();
     } catch (error) {
         console.error("Erreur lors du chargement des feedbacks:", error);
     }
 };
 
-onMounted(() => {
-    fetchFeedbacks();
-    const interval = setInterval(fetchFeedbacks, 5000);
+onMounted(async () => {
+    bindSliderButtons();
+    await fetchFeedbacks();
+    refreshIntervalId = setInterval(fetchFeedbacks, 5000);
+});
 
-    let items;
-    let next;
-    let prev;
-    let active = 3;
+onBeforeUnmount(() => {
+    if (refreshIntervalId) {
+        clearInterval(refreshIntervalId);
+    }
 
-    setTimeout(() => {
-        items = document.querySelectorAll(".slider .item");
-        next = document.getElementById("next");
-        prev = document.getElementById("prev");
+    if (nextButton) {
+        nextButton.onclick = null;
+    }
 
-        const loadShow = () => {
-            let stt = 0;
-            items[active].style.transform = `none`;
-            items[active].style.zIndex = items.length;
-            items[active].style.filter = "none";
-            items[active].style.opacity = 1;
-
-            for (let i = active + 1; i < items.length; i++) {
-                stt++;
-                items[i].style.transform = `translateX(${120 * stt}px) scale(${
-                    1 - 0.2 * stt
-                }) perspective(16px) rotateY(-1deg)`;
-                items[i].style.zIndex = items.length - stt;
-                items[i].style.filter = "blur(5px)";
-                items[i].style.opacity = stt > 2 ? 0 : 0.6;
-            }
-            stt = 0;
-            for (let i = active - 1; i >= 0; i--) {
-                stt++;
-                items[i].style.transform = `translateX(${-120 * stt}px) scale(${
-                    1 - 0.2 * stt
-                }) perspective(16px) rotateY(1deg)`;
-                items[i].style.zIndex = items.length - stt;
-                items[i].style.filter = "blur(5px)";
-                items[i].style.opacity = stt > 2 ? 0 : 0.6;
-            }
-        };
-
-        loadShow();
-        next.onclick = () => {
-            active = active + 1 < items.length ? active + 1 : 0;
-            loadShow();
-        };
-        prev.onclick = () => {
-            active = active - 1 >= 0 ? active - 1 : items.length - 1;
-            loadShow();
-        };
-    }, 500);
+    if (prevButton) {
+        prevButton.onclick = null;
+    }
 });
 </script>
 

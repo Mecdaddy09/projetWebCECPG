@@ -53,25 +53,33 @@ const menuOpen = ref(false);
                 <RouterLink
                     to="/chantierPage"
                     class="relative flex items-center justify-between group text-sm lg:text-base font-poppins font-medium mb-2 transition-all duration-300"
-                    :class="
-                        isHomePage
+                    :class="[
+                        route.path === '/chantierPage'
+                            ? 'text-secondary'
+                            : isHomePage
                             ? 'text-white hover:text-primary'
-                            : 'text-gray-50 hover:text-secondary'
-                    "
+                            : 'text-gray-50 hover:text-secondary',
+                    ]"
                 >
                     <span>Le genre en pratiques</span>
                     <span
                         :class="[
-                            'absolute -bottom-1 left-1/2 w-0 h-0.5 transition-all duration-300',
-                            isHomePage ? 'bg-primary' : 'bg-secondary',
-                            'group-hover:w-1/2',
+                            'absolute -bottom-1 left-1/2 h-0.5 transition-all duration-300',
+                            route.path === '/chantierPage'
+                                ? 'bg-secondary w-1/2'
+                                : isHomePage
+                                ? 'bg-primary w-0 group-hover:w-1/2'
+                                : 'bg-secondary w-0 group-hover:w-1/2',
                         ]"
                     ></span>
                     <span
                         :class="[
-                            'absolute -bottom-1 right-1/2 w-0 h-0.5 transition-all duration-300',
-                            isHomePage ? 'bg-primary' : 'bg-secondary',
-                            'group-hover:w-1/2',
+                            'absolute -bottom-1 right-1/2 h-0.5 transition-all duration-300',
+                            route.path === '/chantierPage'
+                                ? 'bg-secondary w-1/2'
+                                : isHomePage
+                                ? 'bg-primary w-0 group-hover:w-1/2'
+                                : 'bg-secondary w-0 group-hover:w-1/2',
                         ]"
                     ></span>
                 </RouterLink>
@@ -81,25 +89,33 @@ const menuOpen = ref(false);
                 <RouterLink
                     to="/statPage"
                     class="relative flex items-center justify-between group text-sm lg:text-base font-poppins font-medium mb-2 transition-all duration-300"
-                    :class="
-                        isHomePage
+                    :class="[
+                        route.path === '/statPage'
+                            ? 'text-secondary'
+                            : isHomePage
                             ? 'text-white hover:text-primary'
-                            : 'text-gray-50 hover:text-secondary'
-                    "
+                            : 'text-gray-50 hover:text-secondary',
+                    ]"
                 >
                     <span>Statistiques</span>
                     <span
                         :class="[
-                            'absolute -bottom-1 left-1/2 w-0 h-0.5 transition-all duration-300',
-                            isHomePage ? 'bg-primary' : 'bg-secondary',
-                            'group-hover:w-1/2',
+                            'absolute -bottom-1 left-1/2 h-0.5 transition-all duration-300',
+                            route.path === '/statPage'
+                                ? 'bg-secondary w-1/2'
+                                : isHomePage
+                                ? 'bg-primary w-0 group-hover:w-1/2'
+                                : 'bg-secondary w-0 group-hover:w-1/2',
                         ]"
                     ></span>
                     <span
                         :class="[
-                            'absolute -bottom-1 right-1/2 w-0 h-0.5 transition-all duration-300',
-                            isHomePage ? 'bg-primary' : 'bg-secondary',
-                            'group-hover:w-1/2',
+                            'absolute -bottom-1 right-1/2 h-0.5 transition-all duration-300',
+                            route.path === '/statPage'
+                                ? 'bg-secondary w-1/2'
+                                : isHomePage
+                                ? 'bg-primary w-0 group-hover:w-1/2'
+                                : 'bg-secondary w-0 group-hover:w-1/2',
                         ]"
                     ></span>
                 </RouterLink>
@@ -109,25 +125,33 @@ const menuOpen = ref(false);
                 <RouterLink
                     to="/forumPage"
                     class="relative flex items-center justify-between group text-sm lg:text-base font-poppins font-medium mb-2 transition-all duration-300"
-                    :class="
-                        isHomePage
+                    :class="[
+                        route.path === '/forumPage'
+                            ? 'text-secondary'
+                            : isHomePage
                             ? 'text-white hover:text-primary'
-                            : 'text-gray-50 hover:text-secondary'
-                    "
+                            : 'text-gray-50 hover:text-secondary',
+                    ]"
                 >
                     <span>Témoignage</span>
                     <span
                         :class="[
-                            'absolute -bottom-1 left-1/2 w-0 h-0.5 transition-all duration-300',
-                            isHomePage ? 'bg-primary' : 'bg-secondary',
-                            'group-hover:w-1/2',
+                            'absolute -bottom-1 left-1/2 h-0.5 transition-all duration-300',
+                            route.path === '/forumPage'
+                                ? 'bg-secondary w-1/2'
+                                : isHomePage
+                                ? 'bg-primary w-0 group-hover:w-1/2'
+                                : 'bg-secondary w-0 group-hover:w-1/2',
                         ]"
                     ></span>
                     <span
                         :class="[
-                            'absolute -bottom-1 right-1/2 w-0 h-0.5 transition-all duration-300',
-                            isHomePage ? 'bg-primary' : 'bg-secondary',
-                            'group-hover:w-1/2',
+                            'absolute -bottom-1 right-1/2 h-0.5 transition-all duration-300',
+                            route.path === '/forumPage'
+                                ? 'bg-secondary w-1/2'
+                                : isHomePage
+                                ? 'bg-primary w-0 group-hover:w-1/2'
+                                : 'bg-secondary w-0 group-hover:w-1/2',
                         ]"
                     ></span>
                 </RouterLink>
@@ -138,20 +162,23 @@ const menuOpen = ref(false);
     <!-- MENU MOBILE -->
     <transition name="slide-top">
         <div v-if="menuOpen" class="lg:hidden fixed inset-0 z-40">
-            <!-- Overlay cliquable -->
             <div
                 class="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 @click.self="menuOpen = false"
             ></div>
 
-            <!-- Contenu du menu (slide from top) -->
             <div
                 class="absolute top-0 left-0 w-full bg-primary/90 px-6 py-10 space-y-6 text-white font-poppins text-lg z-50"
             >
                 <RouterLink
                     to="/chantierPage"
-                    class="block mt-10"
+                    class="block"
                     @click="menuOpen = false"
+                    :class="[
+                        route.path === '/chantierPage'
+                            ? 'text-secondary font-bold underline underline-offset-4'
+                            : '',
+                    ]"
                 >
                     Le genre en pratiques
                 </RouterLink>
@@ -159,6 +186,11 @@ const menuOpen = ref(false);
                     to="/statPage"
                     class="block"
                     @click="menuOpen = false"
+                    :class="[
+                        route.path === '/statPage'
+                            ? 'text-secondary font-bold underline underline-offset-4'
+                            : '',
+                    ]"
                 >
                     Statistiques
                 </RouterLink>
@@ -166,6 +198,11 @@ const menuOpen = ref(false);
                     to="/forumPage"
                     class="block"
                     @click="menuOpen = false"
+                    :class="[
+                        route.path === '/forumPage'
+                            ? 'text-secondary font-bold underline underline-offset-4'
+                            : '',
+                    ]"
                 >
                     Témoignage
                 </RouterLink>

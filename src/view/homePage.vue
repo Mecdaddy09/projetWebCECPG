@@ -3,6 +3,36 @@ import MapComponent from "@/components/maps.vue";
 import Footer from "@/components/footer.vue";
 import Navbar from "@/components/navbar.vue";
 
+const vimeoVideos = [
+    { id: "1164438852" },
+    { id: "1164438870" },
+    { id: "1164438895" },
+    { id: "1164438922" },
+];
+
+const buildVimeoEmbedUrl = ({ id, hash }) => {
+    const params = new URLSearchParams({
+        background: "1",
+        autoplay: "1",
+        loop: "1",
+        muted: "1",
+        autopause: "0",
+        title: "0",
+        byline: "0",
+        portrait: "0",
+        dnt: "1",
+        playsinline: "1",
+    });
+
+    if (hash) {
+        params.set("h", hash);
+    }
+
+    return `https://player.vimeo.com/video/${id}?${params.toString()}`;
+};
+
+const videoSources = vimeoVideos.map(buildVimeoEmbedUrl);
+
 const services = [
     {
         icon: "fas fa-venus-mars",
@@ -36,24 +66,18 @@ const services = [
             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 h-full w-full gap-0.5"
         >
             <div
-                v-for="(src, i) in [
-                    'http://www.cartogenre-uf.mastercmw.com/videos/video_1.mp4',
-                    'http://www.cartogenre-uf.mastercmw.com/videos/video_2.mp4',
-                    'https://cartogenre-uf.mastercmw.com/videos/video_3.mp4',
-                    'https://cartogenre-uf.mastercmw.com/videos/video_4.mp4',
-                ]"
+                v-for="(src, i) in videoSources"
                 :key="i"
-                class="relative w-full h-full"
+                class="relative w-full h-full overflow-hidden"
             >
-                <video
-                    class="absolute top-0 left-0 w-full h-full object-cover"
-                    autoplay
-                    muted
-                    loop
-                >
-                    <source :src="src" type="video/mp4" />
-                    Votre navigateur ne supporte pas la lecture de vidéos.
-                </video>
+                <iframe
+                    :title="`Vimeo video ${i + 1}`"
+                    :src="src"
+                    class="vimeo-cover"
+                    frameborder="0"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowfullscreen
+                ></iframe>
             </div>
         </div>
 
@@ -259,6 +283,21 @@ const services = [
 </template>
 
 <style scoped>
+.vimeo-cover {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 100%;
+    width: auto;
+    min-width: 100%;
+    min-height: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
+    pointer-events: none;
+}
+
 .scrollbar-hidden::-webkit-scrollbar {
     width: 8px;
     height: 8px;

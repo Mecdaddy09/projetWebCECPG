@@ -1,21 +1,75 @@
 <script setup>
-import { ref, onMounted, watch, nextTick } from "vue";
+import { ref, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 
-const videoIntro = "https://www.cartogenre-uf.mastercmw.com/videos/slide1.mp4";
-const video2 = "https://www.cartogenre-uf.mastercmw.com/videos/videoIntro.mp4";
-const video3 = "https://www.cartogenre-uf.mastercmw.com/videos/slide3.mp4";
+const vimeoVideos = [
+    { id: "1164442147" },
+    { id: "1164442101" },
+    { id: "1164442165" },
+];
+
+const buildVimeoEmbedUrl = (
+    { id, hash },
+    {
+        background = false,
+        autoplay = true,
+        loop = true,
+        muted = true,
+        controls = true,
+    } = {},
+) => {
+    const params = new URLSearchParams({
+        autoplay: autoplay ? "1" : "0",
+        loop: loop ? "1" : "0",
+        muted: muted ? "1" : "0",
+        autopause: "0",
+        dnt: "1",
+        playsinline: "1",
+        title: "0",
+        byline: "0",
+        portrait: "0",
+    });
+
+    if (background) {
+        params.set("background", "1");
+    } else {
+        params.set("controls", controls ? "1" : "0");
+    }
+
+    if (hash) {
+        params.set("h", hash);
+    }
+
+    return `https://player.vimeo.com/video/${id}?${params.toString()}`;
+};
+
+const slideMedias = vimeoVideos.map((video) => ({
+    background: buildVimeoEmbedUrl(video, {
+        background: true,
+        autoplay: true,
+        loop: true,
+        muted: true,
+        controls: false,
+    }),
+    modal: buildVimeoEmbedUrl(video, {
+        background: false,
+        autoplay: true,
+        loop: false,
+        muted: false,
+        controls: true,
+    }),
+}));
 
 const slides = ref([
     {
         id: 0,
-        video: videoIntro,
+        video: slideMedias[0].background,
+        modalVideo: slideMedias[0].modal,
         title: "les enjeux de genre dans la",
-        // subtitle: "THEMATIQUE",
         text: " TOILETTES",
         textprogres: "TOILETTES",
         description:
-            "La vie associative est un facteur de gain en capital social et spatial pour les étudiants de l’université de Fianarantsoa. Souvent, les pratiques au sein de cet univers reproduisent des rôles et des attentes genrées, influençant l’attribution des rôles et des responsabilités, les interactions et les opportunités offertes aux individus.",
+            "À l’Université de Fianarantsoa, une analyse des pratiques genrées révèle des disparités marquées entre étudiant·es, personnel administratif et enseignant·es, tant en termes d’accessibilité aux infrastructures sanitaires que de conditions d’usage.",
         buttons: [
             {
                 text: "EN SAVOIR PLUS",
@@ -29,9 +83,9 @@ const slides = ref([
     },
     {
         id: 1,
-        video: video2,
+        video: slideMedias[1].background,
+        modalVideo: slideMedias[1].modal,
         title: "les enjeux de genre dans la",
-        // subtitle: "THEMATIQUE",
         text: "MOBILITES",
         textprogres: "MOBILITES",
         description:
@@ -49,13 +103,13 @@ const slides = ref([
     },
     {
         id: 2,
-        video: video3,
+        video: slideMedias[2].background,
+        modalVideo: slideMedias[2].modal,
         title: "les enjeux de genre dans l’accès aux",
-        // subtitle: "THEMATIQUE",
         text: "VIE ASSOCIATIVE",
         textprogres: "VIE ASSOCIATIVE",
         description:
-            "À l’Université de Fianarantsoa, une analyse des pratiques genrées révèle des disparités marquées entre étudiant·es, personnel administratif et enseignant·es, tant en termes d’accessibilité aux infrastructures sanitaires que de conditions d’usage.",
+            "La vie associative est un facteur de gain en capital social et spatial pour les étudiants de l’université de Fianarantsoa. Souvent, les pratiques au sein de cet univers reproduisent des rôles et des attentes genrées, influençant l’attribution des rôles et des responsabilités, les interactions et les opportunités offertes aux individus.",
         buttons: [
             {
                 text: "EN SAVOIR PLUS",
@@ -70,13 +124,20 @@ const slides = ref([
 ]);
 
 const currentSlide = ref(0);
-const progressBars = ref([0, 0, 0]);
-const videoElements = ref([]);
+const progressBars = ref(slides.value.map(() => 0));
 const openModal = ref(false);
 const modalVideo = ref("");
 const isHovered = ref(false);
 const isPlaying = ref(true);
 const router = useRouter();
+
+const SLIDE_DURATION_MS = 12000;
+const PROGRESS_TICK_MS = 100;
+let progressTimer = null;
+let carousel = null;
+let onTouchStart = null;
+let onTouchEnd = null;
+let startX = 0;
 
 const navigateToPage = (index) => {
     switch (index) {
@@ -92,37 +153,8 @@ const navigateToPage = (index) => {
     }
 };
 
-const updateProgressBar = () => {
-    const video = videoElements.value[currentSlide.value];
-    if (video) {
-        progressBars.value[currentSlide.value] =
-            (video.currentTime / video.duration) * 100;
-    }
-};
-
-const resetVideo = (index) => {
-    if (videoElements.value[index]) {
-        videoElements.value[index].currentTime = 0;
-    }
-};
-
 const resetProgressBar = () => {
-    progressBars.value = [0, 0, 0];
-};
-
-const nextSlide = () => {
-    resetProgressBar();
-    resetVideo(currentSlide.value);
-    resetSlideContentAnimation();
-    currentSlide.value = (currentSlide.value + 1) % slides.value.length;
-};
-
-const prevSlide = () => {
-    resetProgressBar();
-    resetVideo(currentSlide.value);
-    resetSlideContentAnimation();
-    currentSlide.value =
-        (currentSlide.value - 1 + slides.value.length) % slides.value.length;
+    progressBars.value = slides.value.map(() => 0);
 };
 
 const resetSlideContentAnimation = () => {
@@ -134,59 +166,111 @@ const resetSlideContentAnimation = () => {
     });
 };
 
-const togglePlayPause = () => {
-    const video = videoElements.value[currentSlide.value];
-    if (video) {
-        if (video.paused) {
-            video.play();
-            isPlaying.value = true;
-        } else {
-            video.pause();
-            isPlaying.value = false;
+const stopProgressTimer = () => {
+    if (!progressTimer) {
+        return;
+    }
+
+    clearInterval(progressTimer);
+    progressTimer = null;
+};
+
+const startProgressTimer = () => {
+    stopProgressTimer();
+
+    progressTimer = setInterval(() => {
+        if (!isPlaying.value || openModal.value) {
+            return;
         }
+
+        const index = currentSlide.value;
+        const progressStep = (PROGRESS_TICK_MS / SLIDE_DURATION_MS) * 100;
+        const updatedProgress = Math.min(
+            progressBars.value[index] + progressStep,
+            100,
+        );
+
+        progressBars.value[index] = updatedProgress;
+
+        if (updatedProgress >= 100) {
+            nextSlide();
+        }
+    }, PROGRESS_TICK_MS);
+};
+
+const setSlide = (index) => {
+    resetProgressBar();
+    resetSlideContentAnimation();
+    currentSlide.value = index;
+    if (isPlaying.value && !openModal.value) {
+        startProgressTimer();
     }
 };
 
-const handleVideoEnd = () => {
-    nextSlide();
+const nextSlide = () => {
+    const nextIndex = (currentSlide.value + 1) % slides.value.length;
+    setSlide(nextIndex);
 };
 
-watch(currentSlide, () => {
-    nextTick(() => {
-        const video = videoElements.value[currentSlide.value];
-        if (video) video.play();
-    });
-});
+const prevSlide = () => {
+    const previousIndex =
+        (currentSlide.value - 1 + slides.value.length) % slides.value.length;
+    setSlide(previousIndex);
+};
+
+const togglePlayPause = () => {
+    isPlaying.value = !isPlaying.value;
+    if (isPlaying.value) {
+        startProgressTimer();
+    } else {
+        stopProgressTimer();
+    }
+};
 
 const openModalVideo = (index) => {
-    modalVideo.value = slides.value[index].video;
+    modalVideo.value = slides.value[index].modalVideo;
     openModal.value = true;
+    isPlaying.value = false;
+    stopProgressTimer();
 };
 
 const closeModal = () => {
     openModal.value = false;
+    modalVideo.value = "";
+    isPlaying.value = true;
+    startProgressTimer();
 };
 
 onMounted(() => {
-    let startX = 0;
-    const carousel = document.querySelector(".carousel-wrapper");
+    carousel = document.querySelector(".carousel-wrapper");
+
     if (carousel) {
-        carousel.addEventListener("touchstart", (e) => {
+        onTouchStart = (e) => {
             startX = e.touches[0].clientX;
-        });
-        carousel.addEventListener("touchend", (e) => {
+        };
+        onTouchEnd = (e) => {
             const endX = e.changedTouches[0].clientX;
             const diffX = endX - startX;
-            if (diffX > 50) prevSlide();
-            else if (diffX < -50) nextSlide();
-        });
+            if (diffX > 50) {
+                prevSlide();
+            } else if (diffX < -50) {
+                nextSlide();
+            }
+        };
+
+        carousel.addEventListener("touchstart", onTouchStart);
+        carousel.addEventListener("touchend", onTouchEnd);
     }
-    nextTick(() => {
-        videoElements.value = document.querySelectorAll("video");
-        videoElements.value.forEach((video) => {
-            video.addEventListener("timeupdate", updateProgressBar);
-        });
-    });
+
+    startProgressTimer();
+});
+
+onBeforeUnmount(() => {
+    stopProgressTimer();
+    if (carousel && onTouchStart && onTouchEnd) {
+        carousel.removeEventListener("touchstart", onTouchStart);
+        carousel.removeEventListener("touchend", onTouchEnd);
+    }
 });
 </script>
 
@@ -203,16 +287,16 @@ onMounted(() => {
             <div
                 v-for="(slide, index) in slides"
                 :key="slide.id"
-                class="w-full h-full flex-shrink-0 relative"
+                class="w-full h-full flex-shrink-0 relative overflow-hidden"
             >
-                <video
-                    ref="videoElements"
+                <iframe
+                    :title="`Vimeo slide ${index + 1}`"
                     :src="slide.video"
-                    class="absolute inset-0 w-full h-[100vh] object-cover z-0"
-                    autoplay
-                    muted
-                    @ended="handleVideoEnd"
-                ></video>
+                    class="vimeo-slide z-0"
+                    frameborder="0"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowfullscreen
+                ></iframe>
                 <div
                     class="absolute inset-0 bg-black/60 z-10 pointer-events-none"
                 ></div>
@@ -372,12 +456,13 @@ onMounted(() => {
                     </svg>
                 </button>
 
-                <video
+                <iframe
                     :src="modalVideo"
-                    class="video-modal w-full h-full object-cover"
-                    autoplay
-                    controls
-                ></video>
+                    class="video-modal"
+                    frameborder="0"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowfullscreen
+                ></iframe>
             </div>
         </Teleport>
     </div>
@@ -408,10 +493,23 @@ onMounted(() => {
     z-index: 50;
 }
 
+.vimeo-slide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 177.77777778vh;
+    height: 56.25vw;
+    min-width: 100%;
+    min-height: 100%;
+    transform: translate(-50%, -50%);
+    border: 0;
+    pointer-events: none;
+}
+
 .video-modal {
-    object-fit: cover;
     width: 100%;
     height: 100%;
+    border: 0;
 }
 
 /* Animation d'entrée pour chaque élément du slide */
@@ -486,7 +584,7 @@ onMounted(() => {
         height: 44px !important;
     }
     .video-modal {
-        height: auto;
+        height: 100%;
     }
 }
 

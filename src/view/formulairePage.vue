@@ -37,15 +37,15 @@
                             <label
                                 for="genre"
                                 class="block mb-1 text-sm font-medium text-white"
+                                >Vous êtes :</label
                             >
-                                Vous êtes :
-                            </label>
                             <select
                                 id="genre"
                                 name="genre"
+                                v-model="genre"
                                 class="w-full p-3 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary"
                             >
-                                <option disabled selected value="">
+                                <option disabled value="">
                                     Choisissez une option
                                 </option>
                                 <option value="homme">Homme</option>
@@ -53,20 +53,20 @@
                             </select>
                         </div>
 
-                        <!-- Type de retour -->
+                        <!-- Type -->
                         <div>
                             <label
                                 for="feedbackType"
                                 class="block mb-1 text-sm font-medium text-white"
+                                >Que s'est-il passé ?</label
                             >
-                                Que s'est-il passé ?
-                            </label>
                             <select
                                 id="feedbackType"
                                 name="feedbackType"
+                                v-model="feedbackType"
                                 class="w-full p-3 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary"
                             >
-                                <option value="">
+                                <option disabled value="">
                                     Choisissez un type de témoignage
                                 </option>
                                 <option value="avis">Avis</option>
@@ -88,23 +88,24 @@
                                 type="text"
                                 id="lieu"
                                 name="lieu"
+                                v-model="lieu"
                                 placeholder="Nom du lieu"
                                 class="w-full p-3 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
 
-                        <!-- Message -->
+                        <!-- Message + actions -->
                         <div class="bg-white shadow rounded-lg p-4">
                             <label
                                 for="message"
                                 class="block text-sm font-medium text-gray-700 mb-2"
+                                >Votre message :</label
                             >
-                                Votre message :
-                            </label>
                             <textarea
                                 id="message"
                                 name="message"
                                 rows="4"
+                                v-model="message"
                                 placeholder="À vous le clavier..."
                                 class="w-full p-3 text-gray-800 rounded-lg border border-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                             ></textarea>
@@ -127,10 +128,11 @@
                                     id="file-upload"
                                     type="file"
                                     class="hidden"
+                                    accept="image/*"
                                     @change="handleImageUpload"
                                 />
 
-                                <!-- Microphone -->
+                                <!-- Micro -->
                                 <button
                                     type="button"
                                     @click="
@@ -172,6 +174,7 @@
                                     class="w-20 h-20 object-cover rounded-xl shadow border"
                                 />
                                 <button
+                                    type="button"
                                     @click="removeImage"
                                     class="absolute -top-2 -right-2 bg-white border border-gray-300 text-gray-600 rounded-full p-1 shadow hover:bg-red-500 hover:text-white"
                                 >
@@ -198,6 +201,12 @@
                                     <i class="fas fa-times-circle text-xl"></i>
                                 </button>
                             </div>
+
+                            <!-- Infos taille -->
+                            <p class="mt-3 text-xs text-gray-500">
+                                Limites conseillées : image ≤ 5 Mo • audio ≤ 8
+                                Mo (sinon erreur 413).
+                            </p>
                         </div>
 
                         <!-- Confirmation -->
@@ -208,12 +217,21 @@
                             {{ successMessage }}
                         </div>
 
-                        <!-- Bouton ENVOYER -->
+                        <!-- Erreur -->
+                        <div
+                            v-if="errorMessage"
+                            class="text-red-200 text-sm text-center"
+                        >
+                            {{ errorMessage }}
+                        </div>
+
+                        <!-- Bouton -->
                         <button
                             type="submit"
-                            class="w-full inline-block text-center px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-primary/80 transition duration-200"
+                            :disabled="isSubmitting"
+                            class="w-full inline-block text-center px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-primary/80 transition duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            ENVOYER
+                            {{ isSubmitting ? "ENVOI..." : "ENVOYER" }}
                         </button>
                     </form>
                 </div>
@@ -226,19 +244,41 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import Cartexpression from "@/components/cartexpression.vue";
+import { buildApiUrl } from "@/config/api";
 
 const router = useRouter();
+
+const genre = ref("");
+const feedbackType = ref("");
+const lieu = ref("");
+const message = ref("");
+
 const position = ref({ lat: null, lng: null });
+
 const successMessage = ref("");
+const errorMessage = ref("");
+const isSubmitting = ref(false);
+
+// ✅ limites upload (pour éviter 413)
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_AUDIO_BYTES = 8 * 1024 * 1024; // 8MB
+
+// Image
 const imageFile = ref(null);
 const imagePreview = ref(null);
 
 const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        imageFile.value = file;
-        imagePreview.value = URL.createObjectURL(file);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_IMAGE_BYTES) {
+        errorMessage.value = "❌ Image trop lourde (max 5 Mo).";
+        e.target.value = "";
+        return;
     }
+
+    imageFile.value = file;
+    imagePreview.value = URL.createObjectURL(file);
 };
 
 const removeImage = () => {
@@ -246,6 +286,7 @@ const removeImage = () => {
     imagePreview.value = null;
 };
 
+// Audio
 const isRecording = ref(false);
 let mediaRecorder;
 let chunks = [];
@@ -264,10 +305,22 @@ const startRecording = async () => {
         duration.value = 0;
 
         mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+
         mediaRecorder.onstop = () => {
-            audioBlob.value = new Blob(chunks, { type: "audio/webm" });
-            audioUrl.value = URL.createObjectURL(audioBlob.value);
+            const blob = new Blob(chunks, { type: "audio/webm" });
+
+            if (blob.size > MAX_AUDIO_BYTES) {
+                audioBlob.value = null;
+                audioUrl.value = null;
+                errorMessage.value =
+                    "❌ Audio trop lourd (max 8 Mo). Réduis la durée.";
+            } else {
+                audioBlob.value = blob;
+                audioUrl.value = URL.createObjectURL(blob);
+            }
+
             clearInterval(timer);
+            stream.getTracks().forEach((t) => t.stop());
         };
 
         mediaRecorder.start();
@@ -300,55 +353,89 @@ const clearAudio = () => {
     duration.value = 0;
 };
 
+// Submit
 const handleSubmit = async () => {
-    const genre = document.getElementById("genre").value;
-    const feedbackType = document.getElementById("feedbackType").value;
-    const lieu = document.getElementById("lieu").value;
-    const message = document.getElementById("message").value;
+    successMessage.value = "";
+    errorMessage.value = "";
 
-    if (!genre || !feedbackType) {
-        alert("Veuillez remplir tous les champs obligatoires.");
+    if (!genre.value || !feedbackType.value || !lieu.value || !message.value) {
+        errorMessage.value =
+            "❌ Veuillez remplir tous les champs obligatoires.";
+        return;
+    }
+
+    if (position.value.lat == null || position.value.lng == null) {
+        errorMessage.value = "❌ Veuillez sélectionner un point sur la carte.";
+        return;
+    }
+
+    // ✅ second check tailles
+    if (imageFile.value && imageFile.value.size > MAX_IMAGE_BYTES) {
+        errorMessage.value = "❌ Image trop lourde (max 5 Mo).";
+        return;
+    }
+    if (audioBlob.value && audioBlob.value.size > MAX_AUDIO_BYTES) {
+        errorMessage.value = "❌ Audio trop lourd (max 8 Mo).";
         return;
     }
 
     const formData = new FormData();
-    formData.append("genre", genre);
-    formData.append("feedbackType", feedbackType);
-    formData.append("lieu", lieu);
-    formData.append("message", message);
-    formData.append("latitude", position.value.lat);
-    formData.append("longitude", position.value.lng);
+    formData.append("genre", genre.value);
+    formData.append("feedbackType", feedbackType.value);
+    formData.append("lieu", lieu.value);
+    formData.append("message", message.value);
+    formData.append("latitude", String(position.value.lat));
+    formData.append("longitude", String(position.value.lng));
 
-    if (imageFile.value) {
-        formData.append("file", imageFile.value);
-    }
-    if (audioBlob.value) {
+    if (imageFile.value) formData.append("file", imageFile.value);
+    if (audioBlob.value)
         formData.append("audio", audioBlob.value, "audio.webm");
-    }
+
+    const url = buildApiUrl("submit.php");
+    console.log("API submit URL =>", url);
+
+    isSubmitting.value = true;
 
     try {
-        const response = await fetch(
-            "https://www.cartogenre-uf.mastercmw.com/submit.php",
-            {
-                method: "POST",
-                body: formData,
-            }
-        );
+        const response = await fetch(url, { method: "POST", body: formData });
 
-        const result = await response.json();
+        // lire brut (pour capter HTML 413)
+        const raw = await response.text();
+
+        let result;
+        try {
+            result = JSON.parse(raw);
+        } catch {
+            console.error("Réponse non-JSON :", raw);
+            if (response.status === 413) {
+                throw new Error(
+                    "413 Request Entity Too Large (fichier trop lourd)",
+                );
+            }
+            throw new Error("Réponse serveur non-JSON (erreur nginx/PHP).");
+        }
 
         if (response.ok) {
-            successMessage.value = "✅ Données envoyées avec succès !";
+            successMessage.value =
+                result?.message || "✅ Données envoyées avec succès !";
             setTimeout(() => {
                 successMessage.value = "";
                 router.push("/forumPage");
-            }, 2000);
+            }, 1200);
         } else {
-            alert(`❌ Erreur : ${result.message}`);
+            errorMessage.value = result?.message || "❌ Erreur serveur.";
         }
     } catch (error) {
         console.error("Erreur réseau :", error);
-        alert("❌ Erreur de connexion au serveur.");
+
+        if (String(error.message).includes("413")) {
+            errorMessage.value =
+                "❌ Fichier trop lourd : réduis l’image/l’audio (erreur 413).";
+        } else {
+            errorMessage.value = "❌ Erreur de connexion au serveur.";
+        }
+    } finally {
+        isSubmitting.value = false;
     }
 };
 </script>
